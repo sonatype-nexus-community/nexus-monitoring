@@ -10,6 +10,6 @@ Please note that content of this repo is NOT SUPPORTED by Sonatype, and is a con
 
 Remember:
 
-Use this contribution at the risk tolerance that you have
-Do NOT file Sonatype support tickets related to this project
-DO file issues here on GitHub, so that the community can pitch in
+- Use this contribution at the risk tolerance that you have
+- Do NOT file Sonatype support tickets related to this project
+- DO file issues here on GitHub, so that the community can pitch in
