@@ -1,4 +1,4 @@
-source "$(dirname $BASH_SOURCE)/nrm3-threaddumps.sh"
+source "$(dirname ${BASH_SOURCE[0]})/nrm3-threaddumps.sh"
 
 function test_usage() {
     if ! usage >/dev/null; then
@@ -22,7 +22,7 @@ function test_genDbConnTest() {
 }
 
 function test_detectDirs() {
-    echo "sleep 3" > /tmp/sleep.sh
+    echo "sleep 1" > /tmp/sleep.sh
     bash /tmp/sleep.sh -Dkaraf.data=/var/tmp/sonatype-work -Dexe4j.moduleName=/tmp/bin/nexus org.sonatype.nexus.karaf.NexusMain &
     local _wpid=$!
     #set -x
@@ -39,6 +39,7 @@ function test_detectDirs() {
     if [ "${_WORD_DIR%/}" != "${_INSTALL_DIR%/}/var/tmp/sonatype-work" ]; then
         _error "_WORD_DIR: ${_WORD_DIR%/} != ${_INSTALL_DIR%/}/var/tmp/sonatype-work"
     fi
+    wait
 }
 
 function test_runDbQuery() {
@@ -47,29 +48,33 @@ function test_runDbQuery() {
     fi
 }
 
-function test_takeDumps() {
-    if ! takeDumps "" "1" "1" >/dev/null; then
-        _error
-    fi
-}
-
 function test_tailStdout() {
     rm -f /tmp/stdout_${_pid}.out
     local _pid
-    if type jps &>/dev/null; then
-        _pid="$(jps -l | grep -vw Jps | grep -E '^\d+ \S+' | tail -n1 | cut -d' ' -f1)"
-    fi
+    #if type jps &>/dev/null; then
+    #    _pid="$(jps -l | grep -vw Jps | grep -E '^\d+ \S+' | tail -n1 | cut -d' ' -f1)"
+    #fi
     if [ -z "${_pid}" ]; then
-        echo "sleep 5" > /tmp/sleep.sh
+        echo "sleep 1" > /tmp/sleep.sh
         bash /tmp/sleep.sh -XX:LogFile=/tmp/sleep.sh &
         _pid=$!
     fi
     tailStdout "${_pid}" "1" "" "/"
     local _rc=$?
-    echo ""
     if [ "${_rc}" -ne 0 ] && [ "${_rc}" -ne 124 ] ; then
         _error
     fi
+    wait
+}
+
+function test_takeDumps() {
+    echo "sleep 1" > /tmp/sleep.sh
+    bash /tmp/sleep.sh -XX:LogFile=/tmp/sleep.sh &
+    local _pid=$!
+    if ! takeDumps "${_pid}" "1" "1" "" "/"; then
+        _error
+    fi
+    wait
 }
 
 
