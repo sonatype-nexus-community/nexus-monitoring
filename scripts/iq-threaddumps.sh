@@ -12,6 +12,7 @@ Currently this script gathers the following information:
 
 EXAMPLE:
     # Taking thread dumps whenever the log line contains "QuartzJobStoreTX"
+    # as "nexus" user
     cd /sonatype-work;  # or cd /sonatype-work/clm-cluster;
     curl --compressed -O -L https://raw.githubusercontent.com/sonatype-nexus-community/nexus-monitoring/main/scripts/iq-threaddumps.sh;
     bash ./iq-threaddumps.sh -f /var/log/nexus-iq-server/clm-server.log -r "QuartzJobStoreTX";
@@ -55,7 +56,7 @@ function detectDirs() {    # Best effort. may not return accurate dir path
         fi
         [ -d "${_INSTALL_DIR}" ] || return 1
     fi
-    if [ ! -d "${_WORD_DIR}" ] && [ -d "${_INSTALL_DIR%/}" ]; then
+    if [ ! -d "${_WORK_DIR}" ] && [ -d "${_INSTALL_DIR%/}" ]; then
         local _config
         if [ -s "${_STORE_FILE}" ]; then
             _config="${_STORE_FILE}"
@@ -65,9 +66,9 @@ function detectDirs() {    # Best effort. may not return accurate dir path
         fi
         [ -z "${_config}" ] && return 1
         #_STORE_FILE="$(readlink -f "${_config}")"
-        _WORD_DIR="$(sed -n -E 's/sonatypeWork[[:space:]]*:[[:space:]]*(.+)/\1/p' "${_config}")"
-        [[ ! "${_WORD_DIR}" =~ ^/ ]] && _WORD_DIR="${_INSTALL_DIR%/}/${_WORD_DIR}"
-        [ -d "${_WORD_DIR}" ] || return 1
+        _WORK_DIR="$(sed -n -E 's/sonatypeWork[[:space:]]*:[[:space:]]*(.+)/\1/p' "${_config}")"
+        [[ ! "${_WORK_DIR}" =~ ^/ ]] && _WORK_DIR="${_INSTALL_DIR%/}/${_WORK_DIR}"
+        [ -d "${_WORK_DIR}" ] || return 1
     fi
 }
 
@@ -151,6 +152,7 @@ function takeDumps() {
 # miscChecks &> "${_outFile}"
 function miscChecks() {
     local __doc__="Gather Misc. information"
+    local _pid="$1"
     set -x
     # OS / kernel related
     uname -a
@@ -173,7 +175,7 @@ function miscChecks() {
     if [ -n "${_pid}" ]; then
         cat /proc/${_pid}/limits
         cat /proc/locks | grep -w "${_pid}"
-        ls -li /proc/${_pid}/fd/*
+        #ls -li /proc/${_pid}/fd/*
         pmap -x ${_pid}
     fi
     set +x
@@ -202,15 +204,15 @@ main() {
     local _outDir="${_OUT_DIR:-"/tmp"}"
     _OUT_DIR="${_outDir}"
     if [ -z "${_INSTALL_DIR}" ]; then
-        echo "Could not find install directory." >&2
+        echo "Could not find install directory (_INSTALL_DIR)." >&2
         return 1
     fi
-    if [ -z "${_WORD_DIR}" ]; then
-        echo "Could not find work directory." >&2
+    if [ -z "${_WORK_DIR}" ]; then
+        echo "Could not find work directory (_WORK_DIR)." >&2
         return 1
     fi
-    if [ -z "${_STORE_FILE}" ] && [ -d "${_WORD_DIR%/}" ]; then
-        _STORE_FILE="${_WORD_DIR%/}/etc/fabric/nexus-store.properties"
+    if [ -z "${_STORE_FILE}" ] && [ -d "${_WORK_DIR%/}" ]; then
+        _STORE_FILE="${_WORK_DIR%/}/etc/fabric/nexus-store.properties"
     fi
     local _misc_start=$(date +%s)
     miscChecks "${_PID}" &> "${_outDir%/}/${_pfx}900.log"
