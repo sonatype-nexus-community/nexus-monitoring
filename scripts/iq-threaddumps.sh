@@ -114,8 +114,8 @@ function tailStdout() {
         local jvmLog="${BASH_REMATCH[1]}"
         _cmd="tail -n0 -f "${_installDir%/}/${jvmLog#/}""
     elif readlink -f /proc/${_pid}/fd/1 2>/dev/null | grep -q '/pipe:'; then
-        _cmd="cat /proc/${_pid}/fd/1"
-        _sleep="1"
+        #_cmd="cat /proc/${_pid}/fd/1"
+        _cmd=""
     fi
     if [ -z "${_cmd}" ]; then
         echo "No file to tail for pid:${_pid}" >&2
@@ -171,12 +171,14 @@ function takeDumps() {
         if [ -n "${_jstack}" ]; then
             ${_jstack} -l ${_pid} >> "${_outPfx}000.log"
         elif [ -n "${_admin_url}" ]; then
-            curl -m${_interval} -sSf -k "${_admin_url%/}/threads" >> "${_outPfx}000.log"
+            if ! curl -m${_interval} -sSf -k "${_admin_url%/}/threads" >> "${_outPfx}000.log"; then
+                kill -3 "${_pid}"   # Need to use 'docker logs' or 'kubectl logs'
+            fi
         else
             kill -3 "${_pid}"
         fi
         (date +"%Y-%m-%d %H:%M:%S"; top -H -b -n1 2>/dev/null | head -n60) >> "${_outPfx}001.log"
-        (date +"%Y-%m-%d %H:%M:%S"; netstat -topen 2>/dev/null || cat /proc/net/tcp 2>/dev/null) >> "${_outPfx}002.log"
+        (date +"%Y-%m-%d %H:%M:%S"; netstat -topen 2>/dev/null || cat /proc/net/tcp* 2>/dev/null) >> "${_outPfx}002.log"
         (date +"%Y-%m-%d %H:%M:%S"; netstat -s 2>/dev/null || cat /proc/net/dev 2>/dev/null) >> "${_outPfx}003.log"
         [ ${_i} -lt ${_count} ] && sleep ${_interval}
         [ -n "${_wpid_in_for}" ] && wait ${_wpid_in_for}
