@@ -8,9 +8,9 @@ USAGE:
     export username="nxrm" password="nxrm123" jdbcUrl="jdbc:postgresql://localhost:5432/nxrm"
 
 # Oneliner command:
-    bash <(curl -sfL https://raw.githubusercontent.com/hajimeo/samples/master/bash/monitoring/nrm3-db-mig-assist.sh --compressed)
+    bash <(curl -sSfL https://raw.githubusercontent.com/sonatype-nexus-community/nexus-monitoring/main/scripts/nrm3-db-mig-assist.sh --compressed)
 # Or, to specify DB Migrator version with '-m':
-    curl -O -sfL https://raw.githubusercontent.com/hajimeo/samples/master/bash/monitoring/nrm3-db-mig-assist.sh --compressed
+    curl -O -sSfL https://raw.githubusercontent.com/sonatype-nexus-community/nexus-monitoring/main/scripts/nrm3-db-mig-assist.sh --compressed
     bash ./nrm3-db-mig-assist.sh -m 3.63.0-01
 
 # If Nexus is not running, specify '-i <installDir>' for connection test (and '-s' or 'export' for DB connection):
@@ -238,17 +238,17 @@ EOF
 main() {
     setGlobals "${_PID}"
 
-    chkDbConn
+    if ! chkDbConn; then
+        echo "# Please make sure the database and DB user are created"
+        echo "# //----------------------------------------"
+        printDbUserCreateSQLs
+        echo "# ----------------------------------------//"
+    fi
     chkDirSize
     chkJavaVer
 
     prepareDbMigJar
 
-    echo ""
-    echo "# Please make sure the database and DB user are created"
-    echo "# //----------------------------------------"
-    printDbUserCreateSQLs
-    echo "# ----------------------------------------//"
     echo ""
     echo "# Below makes this OrientDB read-only/freeze (should not unfreeze after completing the migration)"
     echo "curl -sSf -X POST -u \"${_ADMIN_CRED}\" -k \"${_NEXUS_URL%/}/service/rest/v1/read-only/freeze\""
@@ -256,6 +256,10 @@ main() {
     echo "# Example DB migrator command ('-Xmx<N>g', --debug', '--force=true', '--yes' may be required)"
     echo "java -jar ${_MIGRATOR_JAR} --migration_type=postgres --db_url=\"${jdbcUrl}?user=${username}&password=${password}\" --orient.folder=\"$(readlink -f "${_DB_DIR%/}")\""
     echo "# More info: https://help.sonatype.com/repomanager3/installation-and-upgrades/migrating-to-a-new-database#MigratingtoaNewDatabase-MigratingtoPostgreSQL"
+    echo ""
+    echo "# If this is for HA and if blobs are stored in the local disk, please copy blobs to some network share."
+    #echo "curl -L -O https://github.com/kha7iq/ncp/releases/download/v0.1.5/ncp_Linux_x86_64.tar.gz"
+    # Pod doesn't have gzip
 }
 
 
