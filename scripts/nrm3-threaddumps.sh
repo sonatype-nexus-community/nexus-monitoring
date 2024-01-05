@@ -154,7 +154,7 @@ function tailStdout() {
         local jvmLog="${BASH_REMATCH[1]}"
         _cmd="tail -n0 -f "${_installDir%/}/${jvmLog#/}""
     elif readlink -f /proc/${_pid}/fd/1 2>/dev/null | grep -q '/pipe:'; then
-        #_cmd="cat /proc/${_pid}/fd/1"  # this doesn't work
+        #_cmd="cat /proc/${_pid}/fd/1"
         _cmd=""
     fi
     if [ -z "${_cmd}" ]; then
@@ -227,6 +227,8 @@ function miscChecks() {
     local __doc__="Gather Misc. information"
     local _pid="$1"
     set -x
+    # STDOUT / STDERR
+    ls -l /proc/${_pid}/fd/{1,2}
     # OS / kernel related
     uname -a
     cat /etc/*-release
