@@ -20,6 +20,7 @@ EOF
 _STORE_FILE=""
 _DB_CONN_TEST_FILE="/tmp/DbConnTest.groovy"
 _PID=""
+_GROOVY_CLASSPATH=""
 # Also username, password, jdbcUrl
 
 function genDbConnTest() {
@@ -76,9 +77,13 @@ function runDbQuery() {
     local _timeout="${3:-"30"}"
     local _dbConnFile="${4:-"${_DB_CONN_TEST_FILE}"}"
     local _installDir="${5:-"${_INSTALL_DIR}"}"
-    local _groovyAllVer="2.4.17"
+    local _groovyAllVer=""
+    local _groovy_jar="${_installDir%/}/system/org/codehaus/groovy/groovy-all/2.4.17/groovy-all-2.4.17.jar"
+    if [ ! -s "${_installDir%/}/system/org/codehaus/groovy/groovy-all/${_groovyAllVer}/groovy-all-${_groovyAllVer}.jar" ]; then
+        _groovy_jar="$(find "${_installDir%/}/system/org/codehaus/groovy/groovy" -type f -name 'groovy-3.*.jar' 2>/dev/null | head -n1)"
+    fi
     if [ ! -s "${_storeProp}" ] && [ -z "${jdbcUrl}" ]; then
-        echo "No nexus-store.properties file and no jdbcUrl set." >&2
+        echo "ERROR:No nexus-store.properties file and no jdbcUrl set." >&2
         return 1
     fi
     if [ ! -s "${_dbConnFile}" ]; then
@@ -86,7 +91,13 @@ function runDbQuery() {
     fi
     local _java="java"
     [ -d "${JAVA_HOME%/}" ] && _java="${JAVA_HOME%/}/bin/java"
-    timeout ${_timeout}s ${_java} -Dgroovy.classpath="$(find "${_installDir%/}/system/org/postgresql/postgresql" -type f -name 'postgresql-42.*.jar' | tail -n1)" -jar "${_installDir%/}/system/org/codehaus/groovy/groovy-all/${_groovyAllVer}/groovy-all-${_groovyAllVer}.jar" \
+    if [ -z "${_GROOVY_CLASSPATH}" ]; then
+        local _pgJar="$(find "${_installDir%/}/system/org/postgresql/postgresql" -type f -name 'postgresql-*.jar' 2>/dev/null | tail -n1)"
+        local _groovySqlJar="$(find "${_installDir%/}/system/org/codehaus/groovy/groovy-sql" -type f -name 'groovy-sql-*.jar' 2>/dev/null | tail -n1)"
+        _GROOVY_CLASSPATH="${_pgJar}"
+        [ -n "${_groovySqlJar}" ] && _GROOVY_CLASSPATH="${_GROOVY_CLASSPATH}:${_groovySqlJar}"
+    fi
+    timeout ${_timeout}s ${_java} -Dgroovy.classpath="${_GROOVY_CLASSPATH}" -jar "${_groovy_jar}" \
         "${_dbConnFile}" "${_query}" "${_storeProp}"
 }
 
@@ -96,13 +107,13 @@ function setGlobals() { # Best effort. may not return accurate dir path
     if [ -z "${_pid}" ]; then
         _pid="$(ps auxwww | grep -F 'org.sonatype.nexus.karaf.NexusMain' | grep -vw grep | awk '{print $2}' | tail -n1)"
         _PID="${_pid}"
-        [ -z "${_pid}" ] && echo "[WARN] no PID found" >&2
+        [ -z "${_pid}" ] && echo "INFO: no PID found" >&2
     fi
     if [ ! -d "${_INSTALL_DIR}" ]; then
         if [ -n "${_pid}" ]; then
             _INSTALL_DIR="$(ps wwwp ${_pid} | sed -n -E '/org.sonatype.nexus.karaf.NexusMain/ s/.+-Dexe4j.moduleName=([^ ]+)\/bin\/nexus .+/\1/p' | head -1)"
         fi
-        [ -d "${_INSTALL_DIR}" ] || echo "[WARN] no install directory found" >&2
+        [ -d "${_INSTALL_DIR}" ] || echo "WARN: no _INSTALL_DIR found" >&2
     fi
     if [ ! -s "${_STORE_FILE}" ] && [ -z "${jdbcUrl}" ] && [ -n "${_pid}" ]; then
         if [ -e "/proc/${_pid}/environ" ]; then
