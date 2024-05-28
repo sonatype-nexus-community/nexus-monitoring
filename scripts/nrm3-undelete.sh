@@ -4,7 +4,7 @@ usage() {
 bash <(curl -sfL https://raw.githubusercontent.com/sonatype-nexus-community/nexus-monitoring/main/scripts/nrm3-undelete.sh --compressed)
 
 PURPOSE:
-    Undelete one specific file (call this script multiple times for many files)
+    Undelete one or multiple blob IDs (call this script concurrently for many blob IDs)
 
 REQUIREMENTS:
     curl
