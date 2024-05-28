@@ -107,7 +107,14 @@ class RBSs {
                                             "org.sonatype.nexus.blobstore.restore.raw.internal.orient.OrientRawRestoreBlobStrategy",]
 
     static String lookupRestoreBlobStrategy(formatName, isOrient) {
-        def className = fmt(formatName) + "RestoreBlobStrategy"
+        def className = ""
+        if (formatName.equalsIgnoreCase("maven2")) {
+            className = "MavenRestoreBlobStrategy"
+        } else if (formatName.equalsIgnoreCase("pypi")) {
+            className = "PyPiRestoreBlobStrategy"
+        } else {
+            className = fmt(formatName) + "RestoreBlobStrategy"
+        }
         if (isOrient) {
             className = "Orient${className}"
         }
@@ -192,9 +199,10 @@ def main(params) {
             }
             log.info("Restoring blobId:{} (DryRun:{})", blobId, params.dryRun)
             def className = RBSs.lookupRestoreBlobStrategy(formatName, params.isOrient)
-            if (className == null) {
-                log.error("Didn't find restore blob strategy className for format:{}, isOrient:{}", formatName, params.isOrient)
-                continue
+            if (!className) {
+                // TODO: may not work with some minor formats such as bower, cocoapods, conda
+                log.warn("Using 'Base' as didn't find restore blob strategy className for format:{}, isOrient:{}", formatName, params.isOrient)
+                className = RBSs.lookupRestoreBlobStrategy("base", params.isOrient)
             }
             log.debug("className:{} for blobId:{}, format:{}, isOrient:{}", className, blobId, formatName, params.isOrient)
             def restoreBlobStrategy = container.lookup(className) as RestoreBlobStrategy
