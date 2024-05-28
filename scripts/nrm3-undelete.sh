@@ -19,7 +19,7 @@ EXAMPLES:
 
 OPTIONS:
     -I  Installing the groovy script for undeleting
-    -b  blob IDs (comma separated)
+    -b  blob IDs (comma separated), or a file contains lines of blobIDs
     -s  blob store name
 EOF
 }
@@ -255,9 +255,9 @@ main() {
         return
     fi
     if [ -s "${_blobIDs}" ]; then
-        _blobIDs="$(cat "${_blobIDs}")"
+        _blobIDs="$(cat "${_blobIDs}" | tr '\n' ',')"
     fi
-    curl -sSf -u "${_ADMIN_USER}:${_ADMIN_PWD}" -H 'Content-Type: application/json' "${_NEXUS_URL%/}/service/rest/v1/script/${_SCRIPT_NAME}/run" -d'{"blobIDs":"'${_blobIDs}'","blobStore":"'${_blobStore}'","isOrient":'${_IS_ORIENT:-"false"}',"dryRun":'${_DRY_RUN:-"false"}',"debug":'${_DEBUG:-"false"}'}'
+    curl -sSf -u "${_ADMIN_USER}:${_ADMIN_PWD}" -H 'Content-Type: application/json' "${_NEXUS_URL%/}/service/rest/v1/script/${_SCRIPT_NAME}/run" -d'{"blobIDs":"'${_blobIDs%,}'","blobStore":"'${_blobStore}'","isOrient":'${_IS_ORIENT:-"false"}',"dryRun":'${_DRY_RUN:-"false"}',"debug":'${_DEBUG:-"false"}'}'
 }
 
 
