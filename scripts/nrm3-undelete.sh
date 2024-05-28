@@ -14,11 +14,11 @@ EXAMPLES:
     cd /some/workDir
     curl --compressed -O -L https://raw.githubusercontent.com/sonatype-nexus-community/nexus-monitoring/main/scripts/nrm3-undelete.sh
     export _ADMIN_USER="admin" _ADMIN_PWD="******" _NEXUS_URL="http://localhost:8081/" #_DRY_RUN="true" _IS_ORIENT="true"
-    bash ./nrm3-undelete.sh -I                      # To install the necessary script into first time
+    bash ./nrm3-undelete.sh -I      # only once
     bash ./nrm3-undelete.sh -s default -b <blobIDs>
 
 OPTIONS:
-    -I  Installing the groovy script for undeleting
+    -I  Installing the groovy script for undeleting (only once per Nexus)
     -b  blob IDs (comma separated), or a file contains lines of blobIDs
     -s  blob store name
 EOF
