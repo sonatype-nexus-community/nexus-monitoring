@@ -38,13 +38,13 @@ _LOG_FILE=""
 _REGEX=""
 _PID=""
 _OUT_DIR=""
-
+_NO_JSTACK=false
 
 function detectDirs() {    # Best effort. may not return accurate dir path
     local __doc__="Populate PID and directory path global variables"
     local _pid="${1:-"${_PID}"}"
     if [ -z "${_pid}" ]; then
-        _pid="$(ps auxwww | grep -E 'nexus-iq-server.*\.jar server' | grep -vw grep | awk '{print $2}' | tail -n1)"
+        _pid="$(ps auxwww | grep -E '(nexus-iq-server.*\.jar|com.sonatype.insight.brain.service.InsightBrainService) server' | grep -vw grep | awk '{print $2}' | tail -n1)"
         _PID="${_pid}"
         [ -z "${_pid}" ] && return 11
     fi
@@ -55,13 +55,16 @@ function detectDirs() {    # Best effort. may not return accurate dir path
                 _INSTALL_DIR="$(lsof -a -d cwd -p ${_pid} | grep -w "${_pid}" | awk '{print $9}')"
             else
                 local _jarpath="$(ps wwwp ${_pid} 2>/dev/null | grep -m1 -E -o 'nexus-iq-server.*\.jar')"
+                if [ -z "${_jarpath}" ]; then
+                    _jarpath="$(dirname "$(ps wwwp ${_pid} 2>/dev/null | grep -m1 -E -o '\S+/jars/\*')")"
+                fi
                 _INSTALL_DIR="$(dirname "${_jarpath}")"
             fi
         fi
         [ -d "${_INSTALL_DIR}" ] || return 12
     fi
     if [ -z "${_STORE_FILE}" ]; then
-        _STORE_FILE="$(ps wwwp ${_pid} | sed -n -E '/nexus-iq-server/ s/.+\.jar server ([^ ]+).*/\1/p' | head -n1)"
+        _STORE_FILE="$(ps wwwp ${_pid} | sed -n -E 's/.+(nexus-iq-server.*\.jar|com.sonatype.insight.brain.service.InsightBrainService) server ([^ ]+).*/\2/p' | tail -n1)"
         [[ ! "${_STORE_FILE}" =~ ^/ ]] && _STORE_FILE="${_INSTALL_DIR%/}/${_STORE_FILE}"
         [ -e "${_STORE_FILE}" ] && _STORE_FILE="$(readlink -f "${_STORE_FILE}")"
     fi
@@ -167,7 +170,10 @@ function takeDumps() {
             #echo "[$(date +'%Y-%m-%d %H:%M:%S')] DEBUG ${_jstack} -l ${_pid} >> \"${_outPfx}000.log\"" >&2
             ${_jstack} -l ${_pid} >> "${_outPfx}000.log"
         elif [ -n "${_admin_url}" ]; then
-            echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARN  No 'jstack' and no stdout file. Using ${_admin_url%/}/threads" >&2
+            if ! ${_NO_JSTACK}; then
+                echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARN  No 'jstack' and no stdout file. Using ${_admin_url%/}/threads" >&2
+                _NO_JSTACK=true
+            fi
             local _curl_m="$((${_interval} + 3))"   # for IQ admin port, wait a bit longer
             date --rfc-3339=seconds >> "${_outPfx}000.log"
             if ! curl -m${_curl_m:-"5"} -sSf -k "${_admin_url%/}/threads" >> "${_outPfx}000.log"; then
@@ -216,8 +222,9 @@ function miscChecks() {
     # disk / mount (nfs options)
     df -Th
     cat /proc/mounts
-    # selinux / fips
+    # selinux
     sestatus
+    # fips (if Windows HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\FIPSAlgorithmPolicy)
     sysctl crypto.fips_enabled
     # is this k8s?
     cat /var/run/secrets/kubernetes.io/serviceaccount/namespace
